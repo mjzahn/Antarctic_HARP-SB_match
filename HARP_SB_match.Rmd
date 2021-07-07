@@ -19,9 +19,10 @@ Code to determine blue and fin whale calls that were detected on both the sonobu
 library(tidyverse)
 library(geodist)
 library(lubridate)
+library(readxl)
 
-SB <- read_csv("DIFAR_Localisation_WithErrorEstimates.csv")
-harp <- read_csv("Antarc_EA_review_fixedFin.csv")
+SB <- read_csv("DIFAR_Localisation_rematched_v3.csv")
+harp <- read_excel("Antarc_EA_review_fixedFin.xls")
 
 ```
 
@@ -34,7 +35,7 @@ harp <- read_csv("Antarc_EA_review_fixedFin.csv")
 #### filter and format SB data -------------------------------------------------------------------
 
 ## isolate columns of interest
-SB <- SB[,c("UID", "UTC", "BuoyLatitude", "BuoyLongitude", "Species", 
+SB <- SB[,c("UID", "UTC", "Channel", "BuoyLatitude", "BuoyLongitude", "Species", 
             "Latitude", "Longitude", "xError_m", "yError_m")]
 
 ## filter data for:
@@ -47,8 +48,8 @@ SB_filtered <- SB %>% drop_na(BuoyLatitude,BuoyLongitude,Latitude,Longitude) %>%
 
 ## format date from excel numerical date/time to POSIXct in UTC
 SB_filtered$DateTime <- as.Date(SB_filtered$UTC,origin="1899-12-30")
-SB_filtered$DateTime <- as.POSIXct(SB_filtered$DateTime,origin="1899-12-30", tz = 'UTC',
-                                   format = "%a %b %d %Y %H:%M:%OS")        
+# SB_filtered$DateTime <- as.POSIXct(SB_filtered$UTC,origin="1899-12-30", tz = 'UTC',
+#                                    format = "%a %b %d %Y %H:%M:%OS")        
 SB_filtered$DateTime <- with_tz(SB_filtered$DateTime,tz="UTC")
 
 ## filter SB data to only use data from when we have HARP data
@@ -83,7 +84,7 @@ SB_filtered$SB_whaletime <- SB_filtered$DateTime - SB_filtered$SB_timetravel
 
 ```{r SB call at HARP}
 ## isolate columns of interest in harp data and change colnames
-harp <- harp[,2:4]
+harp <- harp[,3:5]
 colnames(harp) <- c("Species", "Call", "Time")
 
 ## calculate distance between coordinates of HARP and localized whale
@@ -110,7 +111,8 @@ SB_filtered$SB_harptime <- SB_filtered$SB_whaletime + SB_filtered$harp_whale_tim
 ```{r harp_whaletime}
 ## clean up SB data
 ## select only columns of interest
-SB_final <- SB_filtered[,c("Species", "DateTime", "SB_harptime", "SB_whaletime")]
+SB_final <- SB_filtered[,c("Species", "DateTime", "SB_whaletime", 
+                           "SB_harptime", "SB_whale_Dist_m", "harp_whale_Dist_m")]
 
 ## change call names from SB log to match harp log
 SB_final$Species[which(SB_final$Species == "abwa")] <- "Antarctic"
@@ -128,14 +130,14 @@ harp$DateTime <- with_tz(harp$DateTime, tz = "UTC")
 #### match 'SB_harptime' with harp detection times for each call type-------------------------
 
 timefudge <- 10 # find match within 10 s = approx 15 km error
-SB_final$harpcall <- rep(NA, nrow(SB_final))
-SB_final$match <- rep(NA, nrow(SB_final))
-SB_final$match_harptime <- rep(as.POSIXct(NA, tz="UTC"),nrow(SB_final))
+SB_final$harpcall <- rep(NA, nrow(SB_final)) # empty col for harp call type
+SB_final$match <- rep(NA, nrow(SB_final)) # empty col for match or not (1/0)
+SB_final$match_harptime <- rep(as.POSIXct(NA, tz="UTC"),nrow(SB_final)) # empty col for corresponding match harp time
 
 for (i in 1:nrow(SB_final)){
   calltype <- as.character(SB_final[i,"Species"]) # determine SB call type
-  harp_working <- harp[which(harp$Call == calltype),] # all harp data for call type
-  harp_times <- harp$DateTime[which(harp$Call == calltype)] # harp times for same call type
+  harp_working <- harp %>% filter(Call == calltype) # all harp data for call type
+  harp_times <- harp_working$DateTime # harp times for same call type
   
   ## find time differences between SB harptime and all harp times for given call type
   SB_harptime <- SB_final$SB_harptime[i]
@@ -146,18 +148,24 @@ for (i in 1:nrow(SB_final)){
     SB_final$match[i] <- 0
     SB_final$match_harptime[i] <- NA
   } else { # if any timeDiff < 10 s
-    match_harptime <- harp_times[which(timeDiff %in% min(timeDiff))][1] # take minimum time diff
-    SB_final$harpcall[i] <- harp_working$Call[which(timeDiff %in% min(timeDiff))][1]
+    match_harptime <- harp_times[which.min(timeDiff)] # take minimum time diff
+    SB_final$harpcall[i] <- harp_working$Call[which.min(timeDiff)]
     SB_final$match_harptime[i] <- match_harptime
     SB_final$match[i] <- 1
   }
 }
 
 ## extract matches
-colnames(SB_final) <- c("Call", "SBtime", "SB_harptime", 
-                        "SB_whaletime","harpcall_ID", "match", "match_harptime")
+colnames(SB_final) <- c("Call", "SBtime", "SB_whaletime", "SB_harptime", "SB_whale_Dist_m",
+                        "harp_whale_Dist_m", "harpcall_ID", "match", "match_harptime")
 SB_harp_matches <- SB_final %>% filter(match == 1) %>% 
-  select(Call, SBtime, SB_harptime, SB_whaletime, match_harptime)
+  select(Call, SBtime, SB_whaletime, SB_harptime, match_harptime, SB_whale_Dist_m, harp_whale_Dist_m)
+
+## convert SB_harp_matches$match_harptime from PST to UTC
+SB_harp_matches$match_harptime <- with_tz(SB_harp_matches$match_harptime, tz = "UTC")
+
+## remove any duplicates from multiple SB channels
+SB_harp_matches <- SB_harp_matches %>% distinct(SBtime, .keep_all = TRUE)
 
 ```
 
