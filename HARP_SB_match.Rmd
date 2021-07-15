@@ -124,6 +124,11 @@ SB_final$Species[which(SB_final$Species == "abwz")] <- "Antarctic"
 SB_final$Species[which(SB_final$Species == "f_20")] <- "20Hz"
 SB_final$Species[which(SB_final$Species == "f_fm")] <- "40Hz"
 
+## change channel names
+SB_final$Channel[which(SB_final$Channel == 2)] <- 3
+SB_final$Channel[which(SB_final$Channel == 1)] <- 2
+SB_final$Channel[which(SB_final$Channel == 0)] <- 1
+
 ## format date from excel numerical date/time to POSIXct in UTC
 harp$DateTime <- as.Date(harp$Time, origin = "1899-12-30")
 harp$DateTime <- as.POSIXct(harp$DateTime, origin = "1899-12-30", tz = 'UTC',
