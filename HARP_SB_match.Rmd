@@ -114,7 +114,7 @@ SB_filtered <- SB_filtered %>% distinct(harp_whale_Dist_m, .keep_all = TRUE)
 ```{r harp_whaletime}
 ## clean up SB data
 ## select only columns of interest
-SB_final <- SB_filtered[,c("Species", "DateTime", "SB_whaletime", 
+SB_final <- SB_filtered[,c("Species", "Channel", "DateTime", "SB_whaletime", 
                            "SB_harptime", "SB_whale_Dist_m", "harp_whale_Dist_m")]
 
 ## change call names from SB log to match harp log
@@ -132,7 +132,7 @@ harp$DateTime <- with_tz(harp$DateTime, tz = "UTC")
 
 #### match 'SB_harptime' with harp detection times for each call type-------------------------
 
-timefudge <- 15 # find match within 10 s = approx 15 km error
+timefudge <- 10 # find match within 10 s = approx 15 km error
 SB_final$harpcall <- rep(NA, nrow(SB_final)) # empty col for harp call type
 SB_final$match <- rep(NA, nrow(SB_final)) # empty col for match or not (1/0)
 SB_final$match_harptime <- rep(as.POSIXct(NA, tz="UTC"),nrow(SB_final)) # empty col for corresponding match harp time
@@ -159,10 +159,10 @@ for (i in 1:nrow(SB_final)){
 }
 
 ## extract matches
-colnames(SB_final) <- c("Call", "SBtime", "SB_whaletime", "SB_harptime", "SB_whale_Dist_m",
+colnames(SB_final) <- c("Call", "Channel", "SBtime", "SB_whaletime", "SB_harptime", "SB_whale_Dist_m",
                         "harp_whale_Dist_m", "harpcall_ID", "match", "match_harptime")
 SB_harp_matches <- SB_final %>% filter(match == 1) %>% 
-  select(Call, SBtime, SB_whaletime, SB_harptime, match_harptime, SB_whale_Dist_m, harp_whale_Dist_m)
+  select(Call, Channel, SBtime, SB_whaletime, SB_harptime, match_harptime, SB_whale_Dist_m, harp_whale_Dist_m)
 
 ## convert SB_harp_matches$match_harptime from PST to UTC
 SB_harp_matches$match_harptime <- with_tz(SB_harp_matches$match_harptime, tz = "UTC")
