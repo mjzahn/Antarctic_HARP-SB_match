@@ -12,8 +12,6 @@ knitr::opts_chunk$set(echo = TRUE)
 Code to determine blue and fin whale calls that were detected on both the sonobuoy (SB) and HARP using timestamps and whale localization estimates.
 
 
-## Load data
-
 ```{r load data}
 ## load packages
 library(tidyverse)
@@ -22,16 +20,16 @@ library(lubridate)
 library(readxl)
 
 SB <- read_csv("DIFAR_Localisation_rematched_v3.csv")
-harp <- read_excel("Antarc_EA_review_fixedFin.xls")
+harp <- read_excel("Antarc_EA_01_df100_new.xls")
 
 ```
 
 
-## Detemine timestamps when we expect SB-detected calls to arrive at HARP
+## Identify Sonobuoys of interest
 
-1. calculate time when SB call occurred at whale location ('SB_whaletime')
+Identify which sonobuoys had calls that we expect to arrive at HARP so I can look at those data in Raven
 
-```{r SB_whaletime}
+```{r SB_filtered}
 #### filter and format SB data -------------------------------------------------------------------
 
 ## isolate columns of interest
@@ -49,15 +47,14 @@ SB_filtered <- SB %>% drop_na(BuoyLatitude,BuoyLongitude,Latitude,Longitude) %>%
 ## format date from excel numerical date/time to POSIXct in UTC
 SB_filtered$DateTime <- as.Date(SB_filtered$UTC,origin="1899-12-30")
 # SB_filtered$DateTime <- as.POSIXct(SB_filtered$UTC,origin="1899-12-30", tz = 'UTC',
-#                                    format = "%a %b %d %Y %H:%M:%OS")        
+                                   # format = "%a %b %d %Y %H:%M:%OS")
 SB_filtered$DateTime <- with_tz(SB_filtered$DateTime,tz="UTC")
 
 ## filter SB data to only use data from when we have HARP data
 SB_filtered <- SB_filtered %>% 
   filter(DateTime > "2019-02-02 20:00:00" & DateTime < "2019-02-11 00:00:00")
 
-
-#### calculate time when SB call occurred at whale location ('SB_whaletime')------------------------
+## filter whales within 50 km of sonobuoy (good localizations)
 
 ## calculate distance between coordinates of SB and localized whale
 SB_locations <- SB_filtered[,c('BuoyLatitude', 'BuoyLongitude')]
@@ -70,6 +67,42 @@ SB_filtered$SB_whale_Dist_m <- geodist(SB_locations, whale_locations,
 
 ## filter for data where calls were within 50 km of SB (distance < 50 km)
 SB_filtered <- SB_filtered %>% filter(SB_whale_Dist_m < 50000)
+
+```
+
+
+```{r SB_IDs}
+## load SB ID info
+SB_all_ID <- read_csv("sonobuoy_IDs.csv")
+SB_all_ID$Latitude <- round(SB_all_ID$Latitude, 2)
+SB_all_ID$Longitude <- round(SB_all_ID$Longitude, 2)
+
+## round SB detection lat/lon data to match SB_ID lat/lon data
+SB_filtered_latlon <- round(SB_filtered[,4:5], 2)
+## change column names to match SB_ID dataset
+SB_filtered_latlon <- SB_filtered_latlon %>% 
+  rename(Latitude = 'BuoyLatitude', Longitude = 'BuoyLongitude')
+
+## merge dataframes to find matching latlon values for detections
+dets_merged <- left_join(SB_filtered_latlon, SB_all_ID, 
+                         by = c('Latitude', 'Longitude'))
+
+length(unique(dets_merged$BuoyID)) # number of SB to analyze
+
+## extract unique BuoyIDs and retain other column data
+SB_ID_final <- distinct(dets_merged, BuoyID, .keep_all = TRUE)
+
+write.csv(SB_ID_final, "SB_ID_filtered.csv")
+
+```
+
+
+## Determine timestamps when we expect SB-detected calls to arrive at HARP
+
+1. calculate time when SB call occurred at whale location ('SB_whaletime')
+
+```{r SB_whaletime}
+#### calculate time when SB call occurred at whale location ('SB_whaletime')------------------------
 
 ## calculate call travel time (s) between SB and whale
 c <- 1441 # speed of sound in m/s in area from Brian
@@ -130,10 +163,10 @@ SB_final$Channel[which(SB_final$Channel == 1)] <- 2
 SB_final$Channel[which(SB_final$Channel == 0)] <- 1
 
 ## format date from excel numerical date/time to POSIXct in UTC
-harp$DateTime <- as.Date(harp$Time, origin = "1899-12-30")
-harp$DateTime <- as.POSIXct(harp$DateTime, origin = "1899-12-30", tz = 'UTC',
+# harp$DateTime <- as.Date(harp$Time, origin = "1899-12-30")
+harp$DateTime <- as.POSIXct(harp$Time, origin = "1899-12-30", tz = 'UTC',
                                    format = "%a %b %d %Y %H:%M:%OS")        
-harp$DateTime <- with_tz(harp$DateTime, tz = "UTC")
+# harp$DateTime <- with_tz(harp$DateTime, tz = "UTC")
 
 #### match 'SB_harptime' with harp detection times for each call type-------------------------
 
