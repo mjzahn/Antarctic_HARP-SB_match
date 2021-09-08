@@ -92,7 +92,7 @@ length(unique(dets_merged$BuoyID)) # number of SB to analyze
 ## extract unique BuoyIDs and retain other column data
 SB_ID_final <- distinct(dets_merged, BuoyID, .keep_all = TRUE)
 
-write.csv(SB_ID_final, "SB_ID_filtered.csv")
+write.csv(SB_ID_final, "SB_ID_filtered.csv") # SB to be analyzed in Raven
 
 ```
 

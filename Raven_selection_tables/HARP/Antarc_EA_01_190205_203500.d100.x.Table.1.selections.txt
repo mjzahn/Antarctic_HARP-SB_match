@@ -1,0 +1,5 @@
+Selection	View	Channel	Begin Date Time	Begin Time (s)	End Time (s)	Low Freq (Hz)	High Freq (Hz)	Call Type
+1	Spectrogram 1	1	2019/2/5  23:23:46.6645	9826.664522671	9830.167613665	31.6	80.2	D
+2	Spectrogram 1	1	2019/2/5  23:24:02.4657	9842.465699068	9845.372519255	32.6	75.4	D
+3	Spectrogram 1	1	2019/2/5  23:24:01.7949	9841.794894410	9848.428407143	19.3	29.4	Antarctic
+4	Spectrogram 1	1	2019/2/5  23:38:09.6956	10689.695582609	10694.018545963	28.3	80.2	D

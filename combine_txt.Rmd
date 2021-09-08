@@ -1,0 +1,70 @@
+---
+title: "Combine_txt_files"
+author: "Marie Zahn"
+date: "9/8/2021"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## combine txt selection tables from Raven
+
+```{r}
+## list all files in the folder
+
+## combine HARP data
+Allfiles <- list.files("Raven_selection_tables/HARP", full.names = T, pattern = "txt")
+
+for (i in 1:length(Allfiles)){
+    #create the new file in the first iteration of the loop by checking if it exists
+    if(!exists("tab1")){tab1 = read.delim(Allfiles[i])}
+    #now, since we've already created the new file, we can just append to it each time
+    if(exists("tab1")){
+         tab_temp1 = read.delim(Allfiles[i])
+         tab1 = rbind(tab1, tab_temp1)
+    }
+}
+
+#then write your final file
+write.table(tab1,"HARP_selection-tables_merged.txt",sep=",", row.names = FALSE)
+write.csv(tab1,"HARP_selection-tables_merged.csv", row.names = FALSE)
+
+## combine SB data
+Allfiles <- list.files("Raven_selection_tables/SB", full.names = T, pattern = "txt")
+
+for (i in 1:length(Allfiles)){
+    #create the new file in the first iteration of the loop by checking if it exists
+    if(!exists("tab")){tab = read.delim(Allfiles[i])}
+    #now, since we've already created the new file, we can just append to it each time
+    if(exists("tab")){
+         tab_temp = read.delim(Allfiles[i])
+         tab = rbind(tab, tab_temp)
+    }
+}
+
+## check # matches in SB data
+length(which(tab$Match == "Match"))
+
+## fix typos
+unique(tab$Match)
+tab$Match[which(tab$Match == "match")] <- "Match"
+tab$Match[which(tab$Match == "Mttch")] <- "Match"
+unique(tab$Match)
+
+tab$Call.Type[which(tab$Call.Type == "d")] <- "D"
+unique(tab$Call.Type)
+
+write.table(tab,"SB_selection-tables_merged.txt", row.names = FALSE)
+write.csv(tab,"SB_selection-tables_merged.csv", row.names = FALSE)
+
+## bar chart
+library(ggplot2)
+calls <- tab[,9:10]
+
+calls %>% ggplot(aes(x = Call.Type, fill = Match)) +
+  geom_bar()
+
+```
+
